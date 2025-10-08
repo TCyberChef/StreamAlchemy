@@ -36,6 +36,11 @@ DEBUG = os.environ.get('STREAM_ALCHEMY_DEBUG', 'False').lower() == 'true'
 RTSP_HOST = os.environ.get('RTSP_HOST', 'localhost')
 RTSP_PORT = int(os.environ.get('RTSP_PORT', '8554'))
 
+# HLS streaming configuration
+HLS_DIR = os.path.join(BASE_TMP_DIR, "hls_streams")
+HLS_SEGMENT_DURATION = 2  # seconds
+HLS_PLAYLIST_SIZE = 5  # number of segments to keep
+
 # Health monitoring limits
 MAX_CPU_USAGE = float(os.environ.get('MAX_CPU_USAGE', '90.0'))  # Percentage
 MAX_MEMORY_USAGE = int(os.environ.get('MAX_MEMORY_USAGE', '2048'))  # MB

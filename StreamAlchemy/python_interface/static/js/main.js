@@ -877,6 +877,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    function initializeViewButtons() {
+        document.querySelectorAll('.view-btn').forEach(button => {
+            const newButton = button.cloneNode(true);
+            button.parentNode.replaceChild(newButton, button);
+
+            newButton.addEventListener('click', function() {
+                const streamItem = newButton.closest('.stream-item');
+                if (!streamItem) {
+                    console.error('Stream item not found');
+                    showAlert('error', 'Error', 'Stream item not found.');
+                    return;
+                }
+                
+                const streamName = streamItem.dataset.streamName;
+                if (!streamName) {
+                    console.error('Stream name not found in dataset:', streamItem.dataset);
+                    showAlert('error', 'Error', 'Stream name not found.');
+                    return;
+                }
+
+                // Open stream viewer in new tab
+                const viewerUrl = `/stream/${streamName}/view`;
+                window.open(viewerUrl, '_blank');
+            });
+        });
+    }
+
     function initializeDeleteButtons() {
         document.querySelectorAll('.delete-btn').forEach(button => {
             const newButton = button.cloneNode(true);
@@ -981,6 +1008,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         </div>
                                         <div class="stream-controls">
                                             <button class="btn btn-sm btn-outline-secondary copy-btn" title="Copy RTSP URL"><i class="fas fa-copy"></i> Copy URL</button>
+                                            <button class="btn btn-sm btn-outline-primary view-btn" title="View Stream in Browser"><i class="fas fa-play-circle"></i> View Stream</button>
                                             <button class="btn btn-sm btn-danger delete-btn" title="Stop Stream"><i class="fas fa-stop-circle"></i> Stop Stream</button>
                                         </div>
                                     </div>
@@ -999,6 +1027,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         activeStreamsContainer.innerHTML = '<div class="p-3 mb-2 bg-light text-dark rounded-3 text-center">No active streams.</div>';
                     }
                     initializeCopyButtons();
+                    initializeViewButtons();
                     initializeDeleteButtons();
                     initializeErrorLogButtons(); 
                 } else {

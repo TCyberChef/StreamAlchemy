@@ -1,4 +1,5 @@
-from flask import Flask, render_template, jsonify, request, flash, redirect, url_for
+from flask import Flask, render_template, jsonify, request, flash, redirect, url_for, send_file, Response
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import os
 import re # For stream name validation
@@ -52,6 +53,7 @@ STATIC_FOLDER_PATH = os.path.join(os.path.dirname(__file__), '..', 'static')
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY # Set secret key for session management
+CORS(app)  # Enable CORS for HLS streaming
 
 # Configure logging
 logging.basicConfig(
@@ -154,7 +156,7 @@ if hasattr(config, 'BROWSEABLE_VIDEO_DIR') and config.BROWSEABLE_VIDEO_DIR:
 # Given UPLOAD_FOLDER = BROWSEABLE_VIDEO_DIR in config, the above create is sufficient.
 # However, UPLOAD_DIR_TO_CREATE is used in the loop below, which handles the effective upload folder path.
 
-for d_path in [config.LOG_DIR, config.CRASH_LOG_DIR, config.PID_DIR, config.STATUS_DIR, getattr(config, 'BROWSEABLE_VIDEO_DIR', DEFAULT_BROWSEABLE_DIR), UPLOAD_DIR_TO_CREATE, getattr(config, 'STREAM_PERSISTENCE_DIR', os.path.join(config.BASE_DIR, 'data'))]: # Added UPLOAD_DIR_TO_CREATE and STREAM_PERSISTENCE_DIR
+for d_path in [config.LOG_DIR, config.CRASH_LOG_DIR, config.PID_DIR, config.STATUS_DIR, getattr(config, 'BROWSEABLE_VIDEO_DIR', DEFAULT_BROWSEABLE_DIR), UPLOAD_DIR_TO_CREATE, getattr(config, 'STREAM_PERSISTENCE_DIR', os.path.join(config.BASE_DIR, 'data')), getattr(config, 'HLS_DIR', os.path.join(config.BASE_TMP_DIR, 'hls_streams'))]: # Added UPLOAD_DIR_TO_CREATE, STREAM_PERSISTENCE_DIR, and HLS_DIR
     os.makedirs(d_path, exist_ok=True)
 
 active_streams = {}
@@ -689,11 +691,20 @@ def construct_ffmpeg_command(data, encoder_info):
     else: # Should not happen due to prior validation
         input_cmd = ""
         
+    # Create HLS directory for this stream
+    hls_dir = os.path.join(config.HLS_DIR, stream_name)
+    os.makedirs(hls_dir, exist_ok=True)
+    
     cmd_parts = ["ffmpeg"]
     if hw_params: cmd_parts.append(hw_params)
     cmd_parts.extend([input_cmd, audio_params, vid_params, f"-r {target_fps_int}"])
     if enc_type != 'hardware_amd' and f'-s {res_dim}' not in vid_params: cmd_parts.append(f"-s {res_dim}")
-    cmd_parts.append(f"-f rtsp -rtsp_transport tcp -rtsp_flags prefer_tcp rtsp://localhost:8554/{stream_name}")
+    
+    # Add dual output: RTSP and HLS
+    rtsp_output = f"-f rtsp -rtsp_transport tcp -rtsp_flags prefer_tcp rtsp://localhost:8554/{stream_name}"
+    hls_output = f"-f hls -hls_time {config.HLS_SEGMENT_DURATION} -hls_list_size {config.HLS_PLAYLIST_SIZE} -hls_flags delete_segments -hls_segment_filename {hls_dir}/segment_%03d.ts {hls_dir}/playlist.m3u8"
+    
+    cmd_parts.extend([rtsp_output, hls_output])
     cmd_str = " ".join(filter(None, cmd_parts))
     dur_hr = data.get('duration_hours', '0'); 
     if dur_hr.isdigit() and int(dur_hr) > 0: 
@@ -2211,6 +2222,45 @@ def cleanup_stale_streams_route():
     except Exception as e:
         app.logger.error(f"Error during stale stream cleanup: {e}")
         return jsonify(success=False, message=str(e)), 500
+
+# HLS Streaming Routes
+@app.route('/hls/<stream_name>/playlist.m3u8')
+def hls_playlist(stream_name):
+    """Serve HLS playlist for a stream"""
+    try:
+        hls_dir = os.path.join(config.HLS_DIR, stream_name)
+        playlist_path = os.path.join(hls_dir, 'playlist.m3u8')
+        
+        if not os.path.exists(playlist_path):
+            return "Playlist not found", 404
+            
+        with open(playlist_path, 'r') as f:
+            content = f.read()
+        
+        return Response(content, mimetype='application/vnd.apple.mpegurl')
+    except Exception as e:
+        app.logger.error(f"Error serving HLS playlist for {stream_name}: {e}")
+        return "Error serving playlist", 500
+
+@app.route('/hls/<stream_name>/<segment>')
+def hls_segment(stream_name, segment):
+    """Serve HLS segment files"""
+    try:
+        hls_dir = os.path.join(config.HLS_DIR, stream_name)
+        segment_path = os.path.join(hls_dir, segment)
+        
+        if not os.path.exists(segment_path):
+            return "Segment not found", 404
+            
+        return send_file(segment_path, mimetype='video/mp2t')
+    except Exception as e:
+        app.logger.error(f"Error serving HLS segment {segment} for {stream_name}: {e}")
+        return "Error serving segment", 500
+
+@app.route('/stream/<stream_name>/view')
+def stream_viewer(stream_name):
+    """Stream viewer page"""
+    return render_template('stream_viewer.html', stream_name=stream_name)
 
 if __name__ == '__main__':
     # Validate configuration

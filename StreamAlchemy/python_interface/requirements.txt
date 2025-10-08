@@ -3,3 +3,4 @@ psutil
 yt-dlp
 requests 
 opencv-python-headless
+flask-cors

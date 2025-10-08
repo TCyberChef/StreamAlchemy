@@ -6,7 +6,7 @@
       "target_fps": "15",
       "audio_enabled": "no",
       "audio_codec": "aac",
-      "hardware_accel": "no",
+      "hardware_accel": "yes",
       "duration_hours": "6",
       "encoder_details": {
         "name": "libx264",
@@ -18,7 +18,7 @@
       "file_source_type": "folder",
       "video_file_path": "/Users/tom.broyer/dev/OnStream_Project/StreamAlchemy/python_interface/browseable_videos/Video_with_Faces_Ready.mp4"
     },
-    "saved_at": 1759910591.672029,
+    "saved_at": 1759911025.042391,
     "status": "active"
   }
 }
