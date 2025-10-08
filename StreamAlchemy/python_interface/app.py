@@ -324,9 +324,22 @@ def restore_streams_on_startup():
 # --- End Configuration ---
 
 # --- MediaMTX Management ---
-MEDIAMTX_DIR = os.path.join(os.path.dirname(__file__), '..', 'mediamtx')
-MEDIAMTX_BINARY = os.path.join(MEDIAMTX_DIR, 'mediamtx')
-MEDIAMTX_CONFIG = os.path.join(MEDIAMTX_DIR, 'mediamtx.yml')
+# Check if MediaMTX is available via Homebrew (macOS) or use local binary
+if shutil.which('mediamtx'):
+    # Use system-installed MediaMTX (Homebrew on macOS)
+    MEDIAMTX_BINARY = shutil.which('mediamtx')
+    MEDIAMTX_DIR = os.path.dirname(MEDIAMTX_BINARY)
+    # Use local config file if it exists, otherwise use system default
+    local_config = os.path.join(os.path.dirname(__file__), '..', 'mediamtx', 'mediamtx.yml')
+    if os.path.exists(local_config):
+        MEDIAMTX_CONFIG = local_config
+    else:
+        MEDIAMTX_CONFIG = '/opt/homebrew/etc/mediamtx/mediamtx.yml'  # Homebrew default
+else:
+    # Fallback to local MediaMTX binary
+    MEDIAMTX_DIR = os.path.join(os.path.dirname(__file__), '..', 'mediamtx')
+    MEDIAMTX_BINARY = os.path.join(MEDIAMTX_DIR, 'mediamtx')
+    MEDIAMTX_CONFIG = os.path.join(MEDIAMTX_DIR, 'mediamtx.yml')
 MEDIAMTX_PID_FILE = os.path.join(PID_DIR, 'mediamtx.pid')
 MEDIAMTX_LOG_FILE = os.path.join(LOG_DIR, 'mediamtx.log')
 
@@ -536,11 +549,13 @@ def _test_vaapi_encoder(codec_name):
     if not _check_vaapi_device() or not shutil.which("ffmpeg"): return False
     vaapi_encoder_name = {'h264': 'h264_vaapi', 'h265': 'hevc_vaapi'}.get(codec_name)
     if not vaapi_encoder_name or not _check_ffmpeg_encoder(vaapi_encoder_name): return False
+    # Use cross-platform timeout for VAAPI test
+    timeout_cmd = "timeout 5" if not config.IS_MACOS else ("gtimeout 5" if shutil.which('gtimeout') else "")
     test_command = (
-        f"timeout 5 ffmpeg -loglevel error -vaapi_device /dev/dri/renderD128 -f lavfi "
+        f"{timeout_cmd} ffmpeg -loglevel error -vaapi_device /dev/dri/renderD128 -f lavfi "
         f"-i testsrc=duration=0.1:size=320x240:rate=10 -vf \"format=nv12,hwupload\" "
         f"-c:v {vaapi_encoder_name} -qp 23 -t 0.1 -f null -"
-    )
+    ).strip()
     return _run_command(test_command, timeout=10).returncode == 0
 
 def get_available_encoders():
@@ -681,7 +696,19 @@ def construct_ffmpeg_command(data, encoder_info):
     cmd_parts.append(f"-f rtsp -rtsp_transport tcp -rtsp_flags prefer_tcp rtsp://localhost:8554/{stream_name}")
     cmd_str = " ".join(filter(None, cmd_parts))
     dur_hr = data.get('duration_hours', '0'); 
-    if dur_hr.isdigit() and int(dur_hr) > 0: cmd_str = f"timeout {int(dur_hr)*3600} {cmd_str}"
+    if dur_hr.isdigit() and int(dur_hr) > 0: 
+        # Use cross-platform timeout approach
+        if config.IS_WINDOWS:
+            # Windows doesn't have timeout command, we'll handle duration in Python
+            pass  # Duration will be handled by the monitoring thread
+        elif config.IS_MACOS:
+            # macOS doesn't have timeout command by default, use gtimeout if available or handle in Python
+            if shutil.which('gtimeout'):
+                cmd_str = f"gtimeout {int(dur_hr)*3600} {cmd_str}"
+            # Otherwise, duration will be handled by the monitoring thread
+        else:
+            # Linux - use timeout command
+            cmd_str = f"timeout {int(dur_hr)*3600} {cmd_str}"
     return cmd_str
 
 def _get_stream_paths(name):
@@ -790,14 +817,14 @@ def _monitor_ffmpeg(name, cmd, proc, duration_s, paths, stop_event):
             if rc is not None:
                 elapsed = time.time() - start_t
                 _log(paths, f"{name} (PID {proc.pid}) exited (code {rc}) after {elapsed:.1f}s.")
-                is_timeout_kill = "timeout " in cmd and rc == 124 # timeout utility exit code for timeout
+                is_timeout_kill = ("timeout " in cmd or "gtimeout " in cmd) and rc == 124 # timeout utility exit code for timeout
                 was_stopped_by_event = stop_event.is_set()
                 
                 if rc == 0 or (duration_s and is_timeout_kill and abs(elapsed - duration_s) < 20) or was_stopped_by_event:
                     _update_status(paths, "stopped", "Stream stopped normally."); normal_exit = True
                 else:
                     reason = "FFmpeg crashed"
-                    if "timeout " in cmd and rc != 0 and rc != 124: # Error from timeout utility itself or ffmpeg called by it
+                    if ("timeout " in cmd or "gtimeout " in cmd) and rc != 0 and rc != 124: # Error from timeout utility itself or ffmpeg called by it
                         reason += f" (via timeout utility, code {rc})"
                     elif is_timeout_kill: # Timeout happened but not near expected duration_s (premature)
                         reason += f" (killed by timeout utility prematurely or unexpectedly, code {rc})"
