@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# StreamAlchemy specific
+/tmp/stream_alchemy/
+python_interface/browseable_videos/
+python_interface/data/
+python_interface/test_videos/sample.mp4
+*.log
+*.pid
+*.status
+
+# Media files (except sample)
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.webm
+*.flv
+*.m4v
+!python_interface/test_videos/sample.mp4
+
+# Configuration overrides
+config_local.py
+
+# Crash logs and temporary files
+ffmpeg_crash_logs/
+ffmpeg_logs/
+pids/
+status/
+
+# Application logs
+app.log*

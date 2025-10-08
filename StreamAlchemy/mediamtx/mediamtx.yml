@@ -1,0 +1,94 @@
+# General settings
+logLevel: info
+logDestinations: [stdout, file] # Log to standard output. Can also be [stdout, file]
+logFile: /tmp/stream_alchemy/ffmpeg_logs/mediamtx.log  # Path to log file if 'file' is in logDestinations
+
+readTimeout: 10s
+writeTimeout: 10s
+
+# API (optional, but useful for managing the server)
+api: yes
+apiAddress: 127.0.0.1:9997
+
+# Metrics (optional, for Prometheus)
+metrics: no
+# metricsAddress: 127.0.0.1:9998
+
+# pprof (optional, for performance profiling)
+pprof: no
+# pprofAddress: 127.0.0.1:9999
+
+# --- Protocol-specific settings ---
+
+# RTSP settings (RTP streams are typically managed via RTSP)
+rtsp: yes
+rtspAddress: :8554  # Default RTSP port
+# protocols: [udp, multicast, tcp] # By default, all are enabled. TCP is used for handshake.
+# encryption: no # 'no', 'strict', 'optional' for RTSPS (TLS encryption)
+# serverKey: server.key # Needed if encryption is not 'no'
+# serverCert: server.crt # Needed if encryption is not 'no'
+
+# RTMP settings (optional, if you want to publish/read via RTMP)
+rtmp: no
+# rtmpAddress: :1935
+
+# HLS settings (optional, for HTTP Live Streaming)
+hls: yes
+hlsAddress: :8888
+# hlsAlwaysRemux: no # Generate HLS only when a user requests it (good for dynamic streams)
+# hlsSegmentDuration: 1s
+# hlsSegmentCount: 7
+
+# WebRTC settings (optional, for browser-based streaming)
+webrtc: no
+# webrtcAddress: :8889
+# webrtcICEServers2:
+#   - urls: ["stun:stun.l.google.com:19302"]
+
+# --- Path settings ---
+
+# 'pathDefaults' can be used to apply common settings to all paths,
+# including dynamically created ones, unless overridden by a specific path configuration.
+pathDefaults:
+  # Example: Default command to run when any new stream is ready (published)
+  # runOnReady: /path/to/your/script.sh
+  # runOnReadyRestart: no
+
+  # Example: Default setting to record all dynamically published streams
+  # record: yes
+  # recordPath: ./recordings/%path/%Y-%m-%d_%H-%M-%S
+  # recordFormat: fmp4 # or mpegts
+  # recordDeleteAfter: 24h
+
+  # If 'source' is set to 'publisher', it means the path waits for a publisher.
+  # This is the default behavior that allows dynamic publishing.
+  source: publisher
+
+# 'paths' block:
+# You would add specific configurations here if you wanted to:
+# - Define a path that pulls from a specific static source (e.g., an IP camera).
+# - Define a path that acts as an on-demand proxy.
+# - Set up specific authentication or hooks for particular paths or path patterns.
+#
+# For purely dynamic stream creation by publishers, you DON'T need to list every path here.
+# Any stream published to a path not explicitly defined will use 'pathDefaults'
+# or global defaults.
+paths:
+  all_others: # This is a special name that applies to all paths not otherwise matched.
+              # It's another way to set defaults if you prefer it over pathDefaults.
+              # If both pathDefaults and all_others are present, pathDefaults usually takes precedence
+              # for the settings it defines.
+    source: publisher # Explicitly state that unlisted paths expect a publisher.
+
+  # Example of a pre-defined path (not strictly for dynamic creation, but for illustration)
+  # my_predefined_cam:
+  #   source: rtsp://192.168.1.123:554/mycamfeed
+  #   # This stream is always available from this source, not dynamically published by a client to this name.
+
+  # Example of a path pattern for dynamic streams starting with 'live/'
+  # "~^live/.*$": # The "~" indicates a regular expression match
+  #   publishUser: myuser
+  #   publishPass: mypass
+  #   readUser: myreader
+  #   readPass: myreaderpass
+  #   # This would apply authentication to any stream published to a path like /live/stream1, /live/eventABC, etc.

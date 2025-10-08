@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OnStream</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon-16x16.png') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="div-container" style="background-color: #021d3d; width: 1140px; height: 40px;">
+            <a class="navbar-brand" href="/">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Stream Control Logo">
+                OnStream
+            </a>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <div id="alertBox"></div> <!-- Alert box for notifications -->
+
+        <!-- MediaMTX Status Section -->
+        <div id="mediamtx-status" class="mediamtx-status">
+            <div class="status-content">
+                <span class="status-label">MediaMTX Server:</span>
+                <span id="mediamtx-status-text" class="status-text">Checking...</span>
+                <button id="mediamtx-restart-btn" class="btn-small" onclick="restartMediaMTX()" style="display: none;">Restart</button>
+                <a id="mediamtx-log-link" href="/mediamtx/log" target="_blank" class="log-link" style="display: none;">View Log</a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-section">
+                    <h3>Add New Stream</h3>
+                    <form id="streamForm">
+                        <input type="hidden" name="action" value="add_stream">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Stream Type</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="stream_type" id="stream_type_rtsp" value="rtsp">
+                                <label class="form-check-label" for="stream_type_rtsp">RTSP Stream (Re-Stream existing stream)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="stream_type" id="stream_type_file" value="file" checked>
+                                <label class="form-check-label" for="stream_type_file">Video File (Create new stream from file)</label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3" id="rtsp_source_container">
+                            <label for="source_url" class="form-label">Source RTSP URL</label>
+                            <input type="text" class="form-control" id="source_url" name="source_url">
+                        </div>
+
+                        <div class="mb-3" id="file_source_container" style="display: none;">
+                            <label for="video_file" class="form-label">Select Video File</label>
+                            
+                            <!-- File source type selector -->
+                            <div class="btn-group mb-2" role="group" aria-label="File source type">
+                                <input type="radio" class="btn-check" name="file_source_type" id="file_source_folder" value="folder" checked>
+                                <label class="btn btn-outline-primary btn-sm" for="file_source_folder">From Folder</label>
+                                
+                                <input type="radio" class="btn-check" name="file_source_type" id="file_source_custom" value="custom">
+                                <label class="btn btn-outline-primary btn-sm" for="file_source_custom">Custom Path</label>
+                                
+                                <button type="button" class="btn btn-outline-success btn-sm" id="uploadToBrowseableBtn" title="Upload a new video to the browseable folder.">
+                                    <i class="fas fa-upload"></i> Upload to Folder
+                                </button>
+                            </div>
+                            
+                            <!-- Folder selection -->
+                            <div id="folder_selection" class="file-source-option">
+                                <div class="searchable-dropdown">
+                                    <input type="text" class="form-control" id="video_file_search" placeholder="Type to search files..." autocomplete="off">
+                                    <input type="hidden" id="video_file" name="video_file" value="">
+                                    <div class="dropdown-list" id="video_file_dropdown" style="display: none;">
+                                        <div class="dropdown-item loading-item">Loading videos...</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Custom file path -->
+                            <div id="custom_path" class="file-source-option" style="display: none;">
+                                <input type="text" class="form-control" id="video_file_path" name="video_file_path" placeholder="/path/to/your/video.mp4">
+                                <small class="form-text text-muted">Enter the full path to your video file</small>
+                            </div>
+
+                            <!-- Video details placeholder -->
+                            <div id="video_details_container" class="mt-3" style="display: none;">
+                                <h6>Selected Video Details:</h6>
+                                <p id="video_metadata_display" class="text-muted"></p>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="stream_name" class="form-label">Stream Name</label>
+                            <input type="text" class="form-control" id="stream_name" name="stream_name" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="video_codec" class="form-label">Video Codec (all IPP streams)</label>
+                            <select class="form-control" id="video_codec" name="video_codec">
+                                <option value="h264">H.264</option>
+                                <option value="h265">H.265 (HEVC)</option>
+                                <option value="mpeg4">MPEG-4</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Hardware Acceleration</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="hardware_accel" id="hardware_accel" value="yes" checked>
+                                <label class="form-check-label" for="hardware_accel">Enable hardware acceleration (NVENC/VAAPI) - if ffmpeg supports it</label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="target_fps" class="form-label">Target FPS</label>
+                            <select class="form-control" id="target_fps" name="target_fps">
+                                <option value="27">27</option>
+                                <option value="25">25</option>
+                                <option value="20">20</option>
+                                <option value="15" selected>15</option>
+                                <option value="10">10</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="resolution" class="form-label">Resolution</label>
+                            <select class="form-control" id="resolution" name="resolution">                                
+                                <option value="2160">4K (2160p)</option>
+                                <option value="1440">2K (1440p)</option>
+                                <option value="1080" selected>1080p</option>
+                                <option value="720">720p</option>
+                                <option value="480">480p</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="duration_hours" class="form-label">Duration (hours)</label>
+                            <select class="form-control" id="duration_hours" name="duration_hours">
+                                <option value="6">6</option>
+                                <option value="12">12</option>
+                                <option value="24">24</option>
+                                <option value="48">48</option>
+                                <option value="0">Unlimited</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Enable Audio</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="audio_enabled" id="audio_enabled_no" value="no" checked>
+                                <label class="form-check-label" for="audio_enabled_no">No</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="audio_enabled" id="audio_enabled_yes" value="yes">
+                                <label class="form-check-label" for="audio_enabled_yes">Yes</label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3" id="audio_codec_container" style="display: none;">
+                            <label for="audio_codec" class="form-label">Audio Codec</label>
+                            <select class="form-control" id="audio_codec" name="audio_codec">
+                                <option value="aac">AAC</option>
+                                <option value="pcm_alaw">PCM A-law</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Start Stream</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h3>Active Streams</h3>
+                    <button id="cleanupStaleStreamsBtn" class="btn btn-sm btn-outline-warning" title="Clean up stale error streams">
+                        <i class="fas fa-broom"></i> Cleanup
+                    </button>
+                </div>
+                <div id="activeStreams">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Modal -->
+        <div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="uploadModalLabel">Upload Video to Browseable Folder</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="uploadModalAlerts"></div> <!-- For success/error messages -->
+                        <form id="uploadModalForm">
+                            <div class="mb-3">
+                                <label for="uploadFileModalInput" class="form-label text-black">Video file (Max {{ (config.MAX_UPLOAD_SIZE / (1024*1024*1024))|int }}GB, allowed: {{ config.ALLOWED_VIDEO_EXTENSIONS|join(', ') }})</label>
+                                <input type="file" name="file" id="uploadFileModalInput" class="form-control" required data-max-size="{{ config.MAX_UPLOAD_SIZE }}">
+                            </div>
+                            <!-- Progress Bar -->
+                            <div class="progress mt-2" id="uploadProgressContainer" style="display: none;">
+                                <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                            <p class="form-text text-muted">
+                                Videos will be uploaded to: {{ config.UPLOAD_FOLDER }}
+                            </p>
+                            <button type="submit" id="uploadModalSubmitBtn" class="btn btn-primary">
+                                <i class="fas fa-upload"></i> Upload
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Upload Modal -->
+
+        <div class="badge-legend">
+    <div class="badge-legend-title" onclick="toggleLegend()">
+        <i class="fas fa-info-circle"></i> Stream Information Legend (click to expand)
+    </div>
+    <div class="badge-legend-content" id="legendContent">
+        <div class="badge-legend-item">
+            <div class="badge-legend-sample sample-codec"></div>
+            <span>Video Codec (H.264, H.265, MPEG4)</span>
+        </div>
+        <div class="badge-legend-item">
+            <div class="badge-legend-sample sample-audio"></div>
+            <span>Audio Format (none, AAC, PCM)</span>
+        </div>
+        <div class="badge-legend-item">
+            <div class="badge-legend-sample sample-resolution"></div>
+            <span>Video Resolution (1080p, 1440p, 2160p)</span>
+        </div>
+        <div class="badge-legend-item">
+            <div class="badge-legend-sample sample-fps"></div>
+            <span>Frame Rate (frames per second)</span>
+        </div>
+        <div class="badge-legend-item">
+            <div class="badge-legend-sample sample-duration"></div>
+            <span>Remaining Time until stream ends</span>
+        </div>
+        <div class="badge-legend-item">
+            <div class="badge-legend-sample sample-unlimited"></div>
+            <span>Unlimited Duration (stream never expires)</span>
+        </div>
+        <div class="badge-legend-item">
+            <div class="badge-legend-sample sample-accel"></div>
+            <span>Hardware Acceleration (NVENC, VAAPI, CPU)</span>
+        </div>
+        <div class="badge-legend-item">
+            <div class="badge-legend-sample sample-status"></div>
+            <span>Stream Status (Active, Stopped)</span>
+        </div>
+        <div class="badge-legend-item">
+            <div class="badge-legend-sample sample-error"></div>
+            <span>Error Status (Click for details)</span>
+        </div>
+    </div>
+</div>
+
+        <script>
+        function toggleLegend() {
+            const legendContent = document.getElementById('legendContent');
+            if (legendContent.style.display === 'block') {
+                legendContent.style.display = 'none';
+            } else {
+                legendContent.style.display = 'block';
+            }
+        }
+        
+document.addEventListener('DOMContentLoaded', function() {
+    // Load video files on page load - this part is fine here.
+    // const videoFileSelect = document.getElementById('video_file');
+    // function loadVideoFiles() {
+    //     fetch("{{ url_for('list_videos_route') }}")
+    //         .then(response => response.json())
+    //         .then(data => {
+    //             if (data.success) {
+    //                 const select = document.getElementById('video_file');
+    //                 select.innerHTML = '<option value="">Select a video file...</option>';
+    //                 data.videos.forEach(video => {
+    //                     const option = document.createElement('option');
+    //                     option.value = video.path;
+    //                     option.textContent = video.name;
+    //                     select.appendChild(option);
+    //                 });
+    //             }
+    //         })
+    //         .catch(error => {
+    //             console.error('Error loading video files:', error);
+    //             if(videoFileSelect) videoFileSelect.innerHTML = '<option value="">Error loading videos</option>';
+    //         });
+    // }
+    // loadVideoFiles(); // Call it.
+
+    // Form submission logic is now handled by static/js/main.js
+    // const streamForm = document.getElementById('streamForm');
+    // streamForm.addEventListener('submit', function(event) { ... });
+});
+</script>
+</div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html> 
