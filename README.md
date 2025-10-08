@@ -16,7 +16,10 @@
 ### Advanced Encoding
 - **Video Codecs** - H.264, H.265, MPEG-4 support
 - **Resolutions** - 480p, 720p, 1080p, 1440p, 2160p
-- **Hardware Acceleration** - NVENC, VAAPI support for optimal performance
+- **Hardware Acceleration** - Platform-optimized acceleration:
+  - **Windows**: NVENC, QSV, AMF
+  - **macOS**: VideoToolbox, NVENC (on supported hardware)
+  - **Linux**: NVENC, VAAPI, QSV
 - **Audio Control** - AAC, PCM audio codecs with enable/disable options
 - **Custom FPS** - Configurable frame rates
 
@@ -38,27 +41,83 @@
 - **Python 3.8+**
 - **FFmpeg** (with hardware acceleration support recommended)
 - **yt-dlp** (for YouTube support)
-- **Linux/macOS** (Windows support experimental)
+- **Cross-platform support**: Windows, macOS, Linux
 
 ## 🛠️ Quick Start
 
 ### 1. Clone and Setup
 ```bash
 git clone https://github.com/TCyberChef/StreamAlchemy.git
-cd StreamAlchemy/python_interface
+cd StreamAlchemy
 ```
 
-### 2. Install Dependencies
+### 2. Cross-Platform Installation
 ```bash
-# Make run script executable
-chmod +x run.sh
-
-# Run the application (handles venv setup and dependencies)
-./run.sh
+# Run the cross-platform installer
+python3 install.py
 ```
 
-### 3. Access Web Interface
+### 3. Run StreamAlchemy
+
+**Windows:**
+```cmd
+# Double-click run.bat or run:
+python python_interface/run.py
+```
+
+**macOS/Linux:**
+```bash
+# Using shell script:
+./python_interface/run.sh
+
+# Or using Python launcher:
+python3 python_interface/run.py
+```
+
+### 4. Access Web Interface
 Open your browser to `http://localhost:5000`
+
+## 🖥️ Platform-Specific Installation
+
+### Windows
+1. **Install Python 3.8+** from [python.org](https://python.org)
+2. **Install FFmpeg**:
+   - Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+   - Or use: `choco install ffmpeg` (Chocolatey)
+   - Or use: `winget install ffmpeg` (Windows Package Manager)
+3. **Install yt-dlp** (optional): `pip install yt-dlp`
+4. **Run**: `python install.py` then `python python_interface/run.py`
+
+### macOS
+1. **Install Homebrew** (if not installed):
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+2. **Install dependencies**:
+   ```bash
+   brew install python3 ffmpeg yt-dlp
+   ```
+3. **Run**: `python3 install.py` then `./python_interface/run.sh`
+
+### Linux (Ubuntu/Debian)
+1. **Install dependencies**:
+   ```bash
+   sudo apt update
+   sudo apt install python3 python3-pip python3-venv ffmpeg yt-dlp
+   ```
+2. **Run**: `python3 install.py` then `./python_interface/run.sh`
+
+### Linux (CentOS/RHEL/Fedora)
+1. **Install dependencies**:
+   ```bash
+   # CentOS/RHEL
+   sudo yum install python3 python3-pip ffmpeg
+   pip3 install yt-dlp
+   
+   # Fedora
+   sudo dnf install python3 python3-pip ffmpeg yt-dlp
+   ```
+2. **Run**: `python3 install.py` then `./python_interface/run.sh`
 
 ## 📸 Screenshots
 

@@ -1,14 +1,27 @@
 # StreamAlchemy Python Interface Configuration
 
 import os
+import platform
+import tempfile
+
+# Detect operating system
+SYSTEM = platform.system().lower()
+IS_WINDOWS = SYSTEM == 'windows'
+IS_MACOS = SYSTEM == 'darwin'
+IS_LINUX = SYSTEM == 'linux'
 
 # Base paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 VIDEO_DIR = "" # Retained for fallback or other uses, but /list_videos will use BROWSEABLE_VIDEO_DIR
 BROWSEABLE_VIDEO_DIR = os.path.join(BASE_DIR, "browseable_videos") # New directory for browsable files
 
-# Runtime directories
-BASE_TMP_DIR = os.environ.get('STREAM_ALCHEMY_TMP_DIR', '/tmp/stream_alchemy')
+# Runtime directories - OS-specific temp directories
+if IS_WINDOWS:
+    DEFAULT_TMP_DIR = os.path.join(tempfile.gettempdir(), 'stream_alchemy')
+else:
+    DEFAULT_TMP_DIR = '/tmp/stream_alchemy'
+
+BASE_TMP_DIR = os.environ.get('STREAM_ALCHEMY_TMP_DIR', DEFAULT_TMP_DIR)
 LOG_DIR = os.path.join(BASE_TMP_DIR, "ffmpeg_logs")
 CRASH_LOG_DIR = os.path.join(BASE_TMP_DIR, "ffmpeg_crash_logs")
 PID_DIR = os.path.join(BASE_TMP_DIR, "pids")
@@ -40,6 +53,24 @@ DEFAULT_DURATION_HOURS = os.environ.get('DEFAULT_DURATION_HOURS', '6')
 ENABLE_HEALTH_MONITORING = os.environ.get('ENABLE_HEALTH_MONITORING', 'True').lower() == 'true'
 ENABLE_YOUTUBE_SUPPORT = True  # Enable YouTube URL support with yt-dlp
 ENABLE_HARDWARE_ACCEL = os.environ.get('ENABLE_HARDWARE_ACCEL', 'True').lower() == 'true'
+
+# OS-specific hardware acceleration support
+HARDWARE_ACCEL_SUPPORT = {
+    'windows': ['nvenc', 'qsv', 'amf'],
+    'darwin': ['videotoolbox', 'nvenc'],  # macOS supports VideoToolbox and NVENC (on supported hardware)
+    'linux': ['nvenc', 'vaapi', 'qsv']
+}
+
+# Default hardware acceleration for each OS
+DEFAULT_HW_ACCEL = {
+    'windows': 'nvenc',
+    'darwin': 'videotoolbox',  # VideoToolbox is the best choice for macOS
+    'linux': 'nvenc'
+}
+
+# Get available hardware acceleration for current OS
+AVAILABLE_HW_ACCEL = HARDWARE_ACCEL_SUPPORT.get(SYSTEM, [])
+DEFAULT_HW_ACCEL_FOR_OS = DEFAULT_HW_ACCEL.get(SYSTEM, 'nvenc')
 
 # Security and limits
 MAX_UPLOAD_SIZE = 4 * 1024 * 1024 * 1024
