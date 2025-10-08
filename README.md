@@ -60,6 +60,16 @@ chmod +x run.sh
 ### 3. Access Web Interface
 Open your browser to `http://localhost:5000`
 
+## 📸 Screenshots
+
+### Main Interface
+![StreamAlchemy Main Interface](screenshots/streamalchemy-main-interface.png)
+
+### Active Streams Management
+![StreamAlchemy Active Streams](screenshots/streamalchemy-active-streams.png)
+
+*Live demo running at: http://10.1.70.16:5000/*
+
 ## 🎯 Usage
 
 ### Starting a Stream
