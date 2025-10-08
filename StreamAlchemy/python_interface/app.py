@@ -700,12 +700,22 @@ def construct_ffmpeg_command(data, encoder_info):
     cmd_parts.extend([input_cmd, audio_params, vid_params, f"-r {target_fps_int}"])
     if enc_type != 'hardware_amd' and f'-s {res_dim}' not in vid_params: cmd_parts.append(f"-s {res_dim}")
     
-    # Add dual output: RTSP and HLS
+    # For now, let's use RTSP only to avoid dual output issues
+    # We'll implement HLS conversion separately for better stability
     rtsp_output = f"-f rtsp -rtsp_transport tcp -rtsp_flags prefer_tcp rtsp://localhost:8554/{stream_name}"
-    hls_output = f"-f hls -hls_time {config.HLS_SEGMENT_DURATION} -hls_list_size {config.HLS_PLAYLIST_SIZE} -hls_flags delete_segments -hls_segment_filename {hls_dir}/segment_%03d.ts {hls_dir}/playlist.m3u8"
     
-    cmd_parts.extend([rtsp_output, hls_output])
+    cmd_parts.append(rtsp_output)
     cmd_str = " ".join(filter(None, cmd_parts))
+    
+    # Start HLS conversion in background after a short delay
+    def start_hls_conversion():
+        time.sleep(5)  # Wait for RTSP stream to start
+        hls_cmd = f"ffmpeg -i rtsp://localhost:8554/{stream_name} -c:v copy -c:a copy -f hls -hls_time {config.HLS_SEGMENT_DURATION} -hls_list_size {config.HLS_PLAYLIST_SIZE} -hls_flags delete_segments+append_list+independent_segments -hls_segment_filename {hls_dir}/segment_%03d.ts -hls_allow_cache 0 {hls_dir}/playlist.m3u8"
+        subprocess.Popen(hls_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    
+    # Start HLS conversion in background thread
+    hls_thread = threading.Thread(target=start_hls_conversion, daemon=True)
+    hls_thread.start()
     dur_hr = data.get('duration_hours', '0'); 
     if dur_hr.isdigit() and int(dur_hr) > 0: 
         # Use cross-platform timeout approach
